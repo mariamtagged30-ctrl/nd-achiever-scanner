@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ND Achiever QR Scanner</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f5f3;
+      color: #173b2c;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 30px auto;
+      background: white;
+      padding: 22px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: #555;
+      line-height: 1.6;
+    }
+
+    #reader {
+      width: 100%;
+      margin: 20px auto;
+    }
+
+    button {
+      background: #173b2c;
+      color: white;
+      border: none;
+      padding: 13px 20px;
+      margin: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #eef2ef;
+      overflow-wrap: anywhere;
+    }
+
+    #ticketId {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .warning {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <h1>ND ACHIEVER</h1>
+    <h2>Digital Ticket Scanner</h2>
+
+    <p class="subtitle">
+      Award Night Party<br>
+      21 October 2026
+    </p>
+
+    <div id="reader"></div>
+
+    <button id="startButton" onclick="startScanner()">
+      Start Camera
+    </button>
+
+    <button id="stopButton" onclick="stopScanner()" disabled>
+      Stop Camera
+    </button>
+
+    <div id="result" aria-live="polite">
+      <strong>Scanner ready</strong>
+      <p>Press Start Camera to scan a ticket.</p>
+    </div>
+
+    <p class="warning">
+      Scanning reads the QR code only. A ticket must still be
+      verified in the official admin dashboard before entry.
+    </p>
+
+  </div>
+
+  <script>
+    let scanner = null;
+    let running = false;
+    let lastScanned = "";
+
+    function showResult(message) {
+      document.getElementById("result").innerHTML = message;
+    }
+
+    function startScanner() {
+      if (running) return;
+
+      if (typeof Html5Qrcode === "undefined") {
+        showResult("Scanner library failed to load. Check your internet connection.");
+        return;
+      }
+
+      scanner = new Html5Qrcode("reader");
+
+      Html5Qrcode.getCameras()
+        .then(cameras => {
+          if (!cameras || cameras.length === 0) {
+            throw new Error("No camera was found.");
+          }
+
+          const camera =
+            cameras.find(c => /back|rear|environment/i.test(c.label))
+            || cameras[0];
+
+          return scanner.start(
+            camera.id,
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+
+            decodedText => {
+              if (decodedText === lastScanned) return;
+
+              lastScanned = decodedText;
+
+              showResult(
+                "<strong>QR code detected</strong>" +
+                "<p id='ticketId'>" +
+                escapeHtml(decodedText) +
+                "</p>" +
+                "<p>Now verify this ticket in the official admin dashboard.</p>" +
+                "<button onclick='copyTicketId()'>Copy Ticket ID</button>" +
+                "<button onclick='scanNext()'>Scan Next Ticket</button>"
+              );
+
+              stopScanner(false);
+            },
+
+            () => {}
+          );
+        })
+        .then(() => {
+          running = true;
+          document.getElementById("startButton").disabled = true;
+          document.getElementById("stopButton").disabled = false;
+          showResult("Camera active. Point it at a ticket QR code.");
+        })
+        .catch(error => {
+          showResult(
+            "<strong>Camera could not start.</strong><p>" +
+            escapeHtml(error.message || String(error)) +"</p><p>Allow camera access and use the HTTPS GitHub Pages address.</p>"
+          );
+
+          running = false;
+          document.getElementById("startButton").disabled = false;
+          document.getElementById("stopButton").disabled = true;
+        });
+    }
+
+    function stopScanner(updateMessage = true) {
+      if (!scanner || !running) {
+        document.getElementById("startButton").disabled = false;
+        document.getElementById("stopButton").disabled = true;
+        return Promise.resolve();
+      }
+
+      return scanner.stop()
+        .catch(() => {})
+        .then(() => {
+          running = false;
+
+          document.getElementById("startButton").disabled = false;
+          document.getElementById("stopButton").disabled = true;
+
+          if (updateMessage) {
+            showResult("Camera stopped.");
+          }
+        });
+    }
+
+    function scanNext() {
+      lastScanned = "";
+      showResult("Ready for the next ticket.");
+      startScanner();
+    }
+
+    function copyTicketId() {
+      const text = document.getElementById("ticketId").innerText;
+
+      navigator.clipboard.writeText(text)
+        .then(() => alert("QR contents copied."))
+        .catch(() => alert("Please select and copy the displayed ticket ID."));
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[character]);
+    }
+  </script>
+</body>
+</html>
