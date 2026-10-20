@@ -173,7 +173,7 @@ function openAdminDashboard(ticketId) {
               if (decodedText === lastScanned) return;
 
               lastScanned = decodedText;
-
+openAdminDashboard(decodedText);
               showResult(
                 "<strong>QR code detected</strong>" +
                 "<p id='ticketId'>" +
