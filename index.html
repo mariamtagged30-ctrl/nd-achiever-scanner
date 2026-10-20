@@ -114,7 +114,32 @@
   <script>
     let scanner = null;
     let running = false;
-    let lastScanned = "";
+    let lastScanned = "";// Open the official admin dashboard with a scanned ticket ID.
+function openAdminDashboard(ticketId) {
+  const id = String(ticketId || "").trim().toUpperCase();
+
+  if (!/^NDA-[A-Z0-9-]+$/.test(id)) {
+    alert("This QR code does not contain a valid ticket ID.");
+    return;
+  }
+
+  const dashboardURL = prompt(
+    "Paste your official Apps Script web app URL ending in /exec:"
+  );
+
+  if (!dashboardURL) return;
+
+  if (!dashboardURL.startsWith("https://script.google.com/macros/s/") ||
+      !dashboardURL.endsWith("/exec")) {
+    alert("Please enter your official Apps Script web app URL ending in /exec.");
+    return;
+  }
+
+  const url = new URL(dashboardURL);
+  url.searchParams.set("ticketId", id);
+
+  window.open(url.toString(), "_blank", "noopener");
+}
 
     function showResult(message) {
       document.getElementById("result").innerHTML = message;
